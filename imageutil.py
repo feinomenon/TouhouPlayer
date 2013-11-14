@@ -1,5 +1,3 @@
-import player
-
 import win32api, win32con, win32gui, win32ui
 import numpy as np
 from PIL import Image, ImageChops, ImageOps
@@ -30,18 +28,19 @@ def take_screenshot(x0, y0, dx, dy):
 
     return image
 
-# TODO: Turn this into a class
 class Radar(object):
-    def __init__(self):
+    def __init__(self, (center_x, center_y)):
         self.x0 = 35    # Coordinates for gameplay area
         self.y0 = 42
         self.dx = 384
         self.dy = 448
-        self.cur_img = None
 
-        self.fov = 50   # Radius within which to check for hostile objects
+        # Center ideally corresponds to character's hitbox
+        self.center_x, self.center_y = (center_x, center_y)
+        self.dist = 100   # Distance within which to check for hostiles
 
     def screenshot_img(self):
+        # TODO: Take screenshot only of the current fov
         """Takes a screenshot and transforms it into a PIL image."""
         screenshot = take_screenshot(self.x0, self.y0, self.dx, self.dy)
         new_img = Image.frombuffer("RGBA", (384, 448), screenshot,
@@ -49,19 +48,52 @@ class Radar(object):
         # new_img.show()
         return new_img
 
-    def find_diff(self, orig_img):
-        new_img = self.screenshot_img()
-        diff_img = ImageChops.difference(orig_img, new_img)
+    def get_diff(self):
+        """Takes two screenshots and gets their difference in grayscale."""
+        img1 = self.screenshot_img()
+        time.sleep(.03) # TODO: Make this non-blocking
+        img2 = self.screenshot_img()
+        diff_img = ImageChops.difference(img1, img2)
+        # Maybe don't need grayscale?
         # diff_img.show()
         return ImageOps.grayscale(diff_img)
 
+    def scan_fov(self):
+        """
+        Returns the indices (in terms of the current fov) of pixels where
+        there are objects.
+        """
+        diff_array = np.array(self.get_diff())
+
+        # Get the slice of the array representing the fov
+        # NumPy indexing: array[rows, cols]
+        x = self.center_x
+        y = self.center_y
+        dist = self.dist
+        # fov_array[0, 0] = diff_array[x, y]
+        fov_array = diff_array[x - dist:x + dist,
+                               y:y + dist]
+
+        # Zero out diff values under 50; get the indices of non-zero values.
+        # Is there a simpler way to get indices of values above a threshold?
+        fov_array[fov_array < 60] = 0
+        return np.nonzero(fov_array)
+
 def main():
-    time.sleep(1)   # Quick, switch to the game screen!
-    radar = Radar()
-    img1 = radar.screenshot_img()
-    time.sleep(.03)
-    diff = radar.find_diff(img1)
-    diff.show()
+    time.sleep(2)   # Quick, switch to the game screen!
+    radar = Radar((223, 379))
+
+    # 448 columns x 384 rows
+    # diff_array = np.array(diff)
+    # Get indices where differences > 100 occur
+    # f = lambda x: x > 100
+    # list = [(i, filter(f, row)) for i, row in enumerate(diff_array)]
+    # print(list)
+
+    start = time.time()
+    arr = radar.scan_fov()
+    print(arr)
+    print(time.time() - start)
 
 if __name__ == '__main__':
     main()
