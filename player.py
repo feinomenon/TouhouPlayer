@@ -3,14 +3,16 @@ from twisted.internet import reactor
 from twisted.internet.task import LoopingCall
 import win32api, win32con, win32gui, win32ui
 
+import random
 import os
 import time
 
 MOVE = {'left': 0x25,   # 2 pixels each movement
         'up': 0x26,
         'right': 0x27,
-        'down': 0x28,
-        'shift': 0x10,  # focus
+        'down': 0x28}
+
+MISC = {'shift': 0x10,  # focus
         'esc': 0x1B}
 
 ATK = {'z': 0x5A,      # shoot
@@ -32,15 +34,17 @@ def key_release(key):
 
 
 class PlayerCharacter(object):
-    def __init__(self, hit_x=223, hit_y=397, radius=3):
+    def __init__(self, hit_x=223, hit_y=397, radius=3, radar=None):
         self.hit_x = hit_x
         self.hit_y = hit_y
         self.radius = radius
         self.width = 62
-        self.height = 82    #slight overestimation
+        self.height = 82    # slight overestimation
+        self.radar = radar
 
     def move_left(self):
         # for i in range(4):
+        # TODO: Hitbox should not be allowed to move outside of gameplay area
         key_press(MOVE['left'])
         self.hit_x -= 4
 
@@ -60,9 +64,9 @@ class PlayerCharacter(object):
         self.hit_y += 8
 
     def shift(self, dir):     # Focused movement
-        key_hold(MOVE['shift'])
+        key_hold(MISC['shift'])
         key_press(MOVE[dir])
-        key.key_release(MOVE['shift'])
+        key.key_release(MISC['shift'])
 
     def shoot(self):
         key_press(ATK['z'])
@@ -70,27 +74,34 @@ class PlayerCharacter(object):
     def bomb(self):
         key_press(ATK['x'])
 
+    def evade(self):
+        object_locs = self.radar.object_locs
+        if object_locs[0].size != 0:
+            self.move_down()
+            # print(self.hit_x, self.hit_y)
+
+    def start(self):
+        self.shoot_constantly = LoopingCall(self.shoot)
+        self.bomb_occasionally = LoopingCall(self.bomb)
+        self.evader = LoopingCall(self.evade)
+
+        self.shoot_constantly.start(0)
+        self.evader.start(.03)
+        # self.bomb_occasionally.start(10, False)
 
 def start_game():
     time.sleep(2)
-
     for i in range(5):
         key_press(0x5A)
         time.sleep(1.5)
 
 def main():
     start_game()
+    radar = Radar((223, 379))
+    player = PlayerCharacter(radar=radar)
 
-    player = PlayerCharacter()
-    radar = Radar()
-
-    shoot = LoopingCall(player.shoot)
-    move_aimlessly = LoopingCall(player.move_left)
-    bomb_occasionally = LoopingCall(player.bomb)
-
-    shoot.start(0)
-    move_aimlessly.start(2)
-    bomb_occasionally.start(10, False)
+    reactor.callWhenRunning(player.start)
+    reactor.callWhenRunning(radar.start)
     reactor.run()
 
 if __name__ == "__main__":
