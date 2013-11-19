@@ -79,6 +79,7 @@ class Radar(object):
         # NumPy indexing: array[rows, cols]
         x = self.center_x
         y = self.center_y
+        # print(x, y)
         apothem = self.apothem
         # Look at front, left, and right of hitbox
         fov_array = diff_array[x-apothem:x+apothem, y-apothem:y]
@@ -96,14 +97,12 @@ class Radar(object):
             self.obj_dists = self.get_distance(obj_locs, fov_center)
         else:
             self.obj_dists = (np.empty(0), np.empty(0))
-        # print(self.obj_dists)
 
     def get_distance(self, locs, reference):
         """Get horizontal and vertical distances of objects in fov as a pair
         of NumPy arrays."""
         h_dists = (locs[:, 0] - reference[0])
         v_dists = (locs[:, 1] - reference[1])
-        # print(h_dists[0])
         return (h_dists, v_dists)
 
     def start(self):

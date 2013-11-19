@@ -1,4 +1,4 @@
-from radar import Radar
+from radar import Radar, GAME_RECT
 from twisted.internet import reactor
 from twisted.internet.task import LoopingCall
 import win32api, win32con, win32gui, win32ui
@@ -47,27 +47,31 @@ class PlayerCharacter(object):
         self.width = 62
         self.height = 82    # slight overestimation
         self.radar = radar
+        self.bounds = GAME_RECT
 
     def move_left(self):
-        # for i in range(4):
-        # TODO: Hitbox should not be allowed to move outside of gameplay area
-        key_press(MOVE['left'])
-        self.hit_x -= 4
+        if self.hit_x >= self.bounds['x0'] + 50:
+            key_press(MOVE['left'])
+            self.hit_x -= 4
+            self.radar.center_x -= 4
 
     def move_right(self):
-        # for i in range(4):
-        key_press(MOVE['right'])
-        self.hit_x += 4
+        if self.hit_x <= self.bounds['dx'] - 50:
+            key_press(MOVE['right'])
+            self.hit_x += 4
+            self.radar.center_x += 4
 
     def move_up(self):
-        # for i in range(4):
-        key_press(MOVE['up'])
-        self.hit_y -= 8
+        if self.hit_y >= self.bounds['y0'] + 50:
+            key_press(MOVE['up'])
+            self.hit_y -= 8
+            self.radar.center_y -= 8
 
     def move_down(self):
-        # for i in range(4):
-        key_press(MOVE['down'])
-        self.hit_y += 8
+        if self.hit_y <= self.bounds['dy'] - 50:
+            key_press(MOVE['down'])
+            self.hit_y += 8
+            self.radar.center_x += 8
 
     def shift(self, dir):     # Focused movement
         key_hold(MISC['shift'])
@@ -84,7 +88,7 @@ class PlayerCharacter(object):
         h_dists, v_dists = self.radar.obj_dists
         if h_dists.size > 0:
             self.move_left()
-        logging.debug(h_dists, v_dists)
+        # logging.debug(h_dists, v_dists)
 
         print(self.hit_x, self.hit_y)
 
