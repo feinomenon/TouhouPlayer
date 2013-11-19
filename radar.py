@@ -110,7 +110,7 @@ class Radar(object):
         self.scanner.start(self.blink_time, False)
 
 def main():
-    radar = Radar((192, 385))
+    radar = Radar((192 + GAME_RECT['x0'], 385 + GAME_RECT['y0']))
     reactor.callWhenRunning(radar.start)
     reactor.run()
 

@@ -21,8 +21,8 @@ MISC = {'shift': 0x10,  # focus
 ATK = {'z': 0x5A,      # shoot
        'x': 0x58}      # bomb
 
-HIT_X = 192
-HIT_Y = 385
+HIT_X = 192 + GAME_RECT['x0']
+HIT_Y = 385 + GAME_RECT['y0']
 
 def key_press(key):
     # TODO: Make this non-blocking
@@ -50,25 +50,25 @@ class PlayerCharacter(object):
         self.bounds = GAME_RECT
 
     def move_left(self):
-        if self.hit_x >= self.bounds['x0'] + 50:
+        if self.hit_x >= self.bounds['x0'] + self.radar.apothem:
             key_press(MOVE['left'])
             self.hit_x -= 4
             self.radar.center_x -= 4
 
     def move_right(self):
-        if self.hit_x <= self.bounds['dx'] - 50:
+        if self.hit_x <= self.bounds['dx'] - self.radar.apothem:
             key_press(MOVE['right'])
             self.hit_x += 4
             self.radar.center_x += 4
 
     def move_up(self):
-        if self.hit_y >= self.bounds['y0'] + 50:
+        if self.hit_y >= self.bounds['y0'] + self.radar.apothem:
             key_press(MOVE['up'])
             self.hit_y -= 8
             self.radar.center_y -= 8
 
     def move_down(self):
-        if self.hit_y <= self.bounds['dy'] - 50:
+        if self.hit_y <= self.bounds['dy'] - self.radar.apothem:
             key_press(MOVE['down'])
             self.hit_y += 8
             self.radar.center_x += 8
