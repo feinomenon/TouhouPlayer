@@ -46,7 +46,7 @@ class Radar(object):
         self.curr_fov = take_screenshot(self.x0, self.y0, self.dx, self.dy)
         self.obj_dists = (np.empty(0), np.empty(0))  # distances of objects in fov
         self.blink_time = .03           # Pause between screenshots
-        self.diff_threhold = 90        # Diffs above this are dangerous
+        self.diff_threhold = 100        # Diffs above this are dangerous
 
         # TODO: Call self.scan_fov only when self.curr_fov is updated
         self.scanner = LoopingCall(self.scan_fov)

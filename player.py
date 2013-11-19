@@ -1,4 +1,5 @@
 from radar import Radar, GAME_RECT
+import numpy as np
 from twisted.internet import reactor
 from twisted.internet.task import LoopingCall
 import win32api, win32con, win32gui, win32ui
@@ -48,6 +49,8 @@ class PlayerCharacter(object):
         self.height = 82    # slight overestimation
         self.radar = radar
         self.bounds = GAME_RECT
+        # TODO: Need some way of knowing that we've hit a wall
+        # TODO: Need some way of knowing that we've lost a life.
 
     def move_left(self):
         if self.hit_x >= self.bounds['x0'] + self.radar.apothem:
@@ -86,11 +89,21 @@ class PlayerCharacter(object):
 
     def evade(self):
         h_dists, v_dists = self.radar.obj_dists
-        if h_dists.size > 0:
-            self.move_left()
-        # logging.debug(h_dists, v_dists)
+        h_avg = np.average(h_dists)
+        v_avg = np.average(v_dists)
 
-        print(self.hit_x, self.hit_y)
+        if h_dists.size > 0:
+            if h_avg > 0:
+                self.move_right()
+            else:
+                self.move_left()
+
+            if v_avg > 0:
+                self.move_up()
+            else:
+                self.move_down()
+        else:
+            self.move_to(HIT_X, HIT_Y)
 
     def move_to(self, x, y):
         """Bring character to (x, y)"""
