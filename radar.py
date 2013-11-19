@@ -44,7 +44,7 @@ class Radar(object):
 
         self.apothem = 50         # Distance within which to check for hostiles
         self.curr_fov = take_screenshot(self.x0, self.y0, self.dx, self.dy)
-        self.obj_dists = np.empty(0)  # distances of objects in fov
+        self.obj_dists = (np.empty(0), np.empty(0))  # distances of objects in fov
         self.blink_time = .03           # Pause between screenshots
         self.diff_threhold = 90        # Diffs above this are dangerous
 
@@ -91,15 +91,16 @@ class Radar(object):
         obj_locs = np.transpose(np.nonzero(fov_array))
         # print obj_locs, obj_locs.shape
 
-        rows = obj_locs.size
-        if rows > 0:
+        # Update self.obj_dists with distances of currently visible objects
+        if obj_locs.size > 0:
             self.obj_dists = self.get_distance(obj_locs, fov_center)
-
-            # print(self.dists_from_center)
-            # print("obj_locs:", object_locs.shape, "dists:", self.dists_from_center.shape)
+        else:
+            self.obj_dists = (np.empty(0), np.empty(0))
+        # print(self.obj_dists)
 
     def get_distance(self, locs, reference):
-        """Get horizontal and vertical distances of objects in fov."""
+        """Get horizontal and vertical distances of objects in fov as a pair
+        of NumPy arrays."""
         h_dists = (locs[:, 0] - reference[0])
         v_dists = (locs[:, 1] - reference[1])
         # print(h_dists[0])

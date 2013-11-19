@@ -6,6 +6,9 @@ import win32api, win32con, win32gui, win32ui
 import random
 import os
 import time
+import logging
+
+logging.basicConfig(filename='thplayer.log',level=logging.DEBUG)
 
 MOVE = {'left': 0x25,   # 2 pixels each movement
         'up': 0x26,
@@ -78,11 +81,12 @@ class PlayerCharacter(object):
         key_press(ATK['x'])
 
     def evade(self):
-        dists = self.radar.dists_from_center
-        if dists.size > 0:
+        h_dists, v_dists = self.radar.obj_dists
+        if h_dists.size > 0:
             self.move_left()
-            self.move_down()
-            print(self.hit_x, self.hit_y)
+        logging.debug(h_dists, v_dists)
+
+        print(self.hit_x, self.hit_y)
 
     def move_to(self, x, y):
         """Bring character to (x, y)"""
