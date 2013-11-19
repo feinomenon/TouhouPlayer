@@ -1,4 +1,4 @@
-from imageutil import Radar
+from radar import Radar
 from twisted.internet import reactor
 from twisted.internet.task import LoopingCall
 import win32api, win32con, win32gui, win32ui
@@ -18,6 +18,9 @@ MISC = {'shift': 0x10,  # focus
 ATK = {'z': 0x5A,      # shoot
        'x': 0x58}      # bomb
 
+HIT_X = 192
+HIT_Y = 385
+
 def key_press(key):
     # TODO: Make this non-blocking
     win32api.keybd_event(key, 0, 0, 0)
@@ -34,7 +37,7 @@ def key_release(key):
 
 
 class PlayerCharacter(object):
-    def __init__(self, hit_x=223, hit_y=397, radius=3, radar=None):
+    def __init__(self, radar, hit_x=HIT_X, hit_y=HIT_Y, radius=3):
         self.hit_x = hit_x
         self.hit_y = hit_y
         self.radius = radius
@@ -75,10 +78,15 @@ class PlayerCharacter(object):
         key_press(ATK['x'])
 
     def evade(self):
-        object_locs = self.radar.object_locs
-        if object_locs[0].size != 0:
+        dists = self.radar.dists_from_center
+        if dists.size > 0:
+            self.move_left()
             self.move_down()
-            # print(self.hit_x, self.hit_y)
+            print(self.hit_x, self.hit_y)
+
+    def move_to(self, x, y):
+        """Bring character to (x, y)"""
+        pass
 
     def start(self):
         self.shoot_constantly = LoopingCall(self.shoot)
@@ -97,8 +105,8 @@ def start_game():
 
 def main():
     start_game()
-    radar = Radar((223, 379))
-    player = PlayerCharacter(radar=radar)
+    radar = Radar((HIT_X, HIT_Y))
+    player = PlayerCharacter(radar)
 
     reactor.callWhenRunning(player.start)
     reactor.callWhenRunning(radar.start)
