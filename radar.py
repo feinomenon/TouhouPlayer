@@ -6,6 +6,9 @@ from twisted.internet.task import LoopingCall
 
 import os
 import time
+import logging
+
+logging.basicConfig(filename='radar.log',level=logging.DEBUG)
 
 # Coordinates for gameplay area
 GAME_RECT = {'x0': 35, 'y0': 42, 'dx': 384, 'dy': 448}
@@ -33,7 +36,7 @@ def take_screenshot(x0, y0, dx, dy):
     return Image.frombuffer("RGBA", (384, 448), image, "raw", "RGBA", 0, 1)
 
 class Radar(object):
-    def __init__(self, (hit_x, hit_y)):
+    def __init__(self, (hit_x, hit_y), apothem, blink_time, diff_threshold):
         self.x0 = GAME_RECT['x0']
         self.y0 = GAME_RECT['y0']
         self.dx = GAME_RECT['dx']
@@ -42,11 +45,11 @@ class Radar(object):
         # TODO: Keep updating center to match character's hitbox
         self.center_x, self.center_y = (hit_x, hit_y)
 
-        self.apothem = 50         # Distance within which to check for hostiles
+        self.apothem = apothem    # Distance within which to check for hostiles
         self.curr_fov = take_screenshot(self.x0, self.y0, self.dx, self.dy)
         self.obj_dists = (np.empty(0), np.empty(0))  # distances of objects in fov
-        self.blink_time = .03           # Pause between screenshots
-        self.diff_threhold = 100        # Diffs above this are dangerous
+        self.blink_time = blink_time           # Pause between screenshots
+        self.diff_threhold = diff_threshold    # Diffs above this are dangerous
 
         # TODO: Call self.scan_fov only when self.curr_fov is updated
         self.scanner = LoopingCall(self.scan_fov)
@@ -73,24 +76,26 @@ class Radar(object):
         Updates self.object_locs with a NumPy array of (x, y) coordinates
         (in terms of the current fov) of detected objects.
         """
-        diff_array = np.array(self.get_diff())
+        diff_ar = np.array(self.get_diff())
 
         # Get the slice of the array representing the fov
         # NumPy indexing: array[rows, cols]
-        x = self.center_x
-        y = self.center_y
-        # print(x, y)
-        apothem = self.apothem
-        # Look at front, left, and right of hitbox
-        fov_array = diff_array[x-apothem:x+apothem, y-apothem:y]
-        fov_center = fov_array[fov_array[0].size/2]
+        # x = self.center_x
+        # y = self.center_y
 
-        # Zero out low diff values; get the indices of non-zero values.
-        # Note: fov_array is a view of diff_array that gets its own set of indices starting at 0,0
-        fov_array[fov_array < self.diff_threhold] = 0
-        # print np.nonzero(fov_array)
-        obj_locs = np.transpose(np.nonzero(fov_array))
-        # print obj_locs, obj_locs.shape
+        # Look at front, left, and right of hitbox
+        # Note: fov_ar is a view of diff_ar that gets its own set of indices starting at 0,0
+        fov_ar = diff_ar[self.center_x-self.apothem:self.center_x+self.apothem,
+                         self.center_y-self.apothem:self.center_y]
+
+        # TODO: Give this a better name, since it's not the vertical center of the array
+        fov_center = (fov_ar[:,0].size-1, fov_ar[0,:].size/2)
+        # Zero out low diff values.
+        fov_ar[fov_ar < self.diff_threhold] = 0
+        # Get the indices of non-zero values.
+        obj_locs = np.transpose(np.nonzero(fov_ar))
+        # logging.debug(fov_ar)
+        # logging.debug(obj_locs)
 
         # Update self.obj_dists with distances of currently visible objects
         if obj_locs.size > 0:
@@ -99,7 +104,7 @@ class Radar(object):
             self.obj_dists = (np.empty(0), np.empty(0))
 
     def get_distance(self, locs, reference):
-        """Get horizontal and vertical distances of objects in fov as a pair
+        """Get average horizontal and vertical distances of objects in fov as a pair
         of NumPy arrays."""
         h_dists = (locs[:, 0] - reference[0])
         v_dists = (locs[:, 1] - reference[1])
