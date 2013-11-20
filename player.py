@@ -26,7 +26,7 @@ HIT_X = 192 + GAME_RECT['x0']
 HIT_Y = 385 + GAME_RECT['y0']
 
 def key_press(key):
-    # TODO: Make this non-blocking
+    # TODO: Check with actual position of sprite
     win32api.keybd_event(key, 0, 0, 0)
     # reactor.callLater(.02, win32api.keybd_event,key, 0,
     #                   win32con.KEYEVENTF_KEYUP, 0)
@@ -53,30 +53,38 @@ class PlayerCharacter(object):
         # TODO: Need some way of knowing that we've lost a life.
 
     def move_left(self):
-        if self.hit_x >= self.bounds['x0'] + self.radar.apothem:
+        if self.hit_x > self.bounds['x0'] + self.radar.apothem + 1:
             key_press(MOVE['left'])
             self.hit_x -= 4
             self.radar.center_x -= 4
+        else:
+            logging.debug("Too far left!")
 
     def move_right(self):
-        if self.hit_x <= self.bounds['dx'] - self.radar.apothem:
+        if self.hit_x < self.bounds['dx'] - self.radar.apothem - 1:
             key_press(MOVE['right'])
             self.hit_x += 4
             self.radar.center_x += 4
+        else:
+            logging.debug("Too far right!")
 
     def move_up(self):
-        if self.hit_y >= self.bounds['y0'] + self.radar.apothem:
+        if self.hit_y > self.bounds['y0'] + self.radar.apothem + 1:
             key_press(MOVE['up'])
             self.hit_y -= 8
             self.radar.center_y -= 8
+        else:
+            logging.debug("Too far up!")
 
     def move_down(self):
-        if self.hit_y <= self.bounds['dy'] - self.radar.apothem:
+        if self.hit_y < self.bounds['dy'] - self.radar.apothem - 1:
             key_press(MOVE['down'])
             self.hit_y += 8
             self.radar.center_x += 8
+        else:
+            logging.debug("Too far down!")
 
-    def shift(self, dir):     # Focused movement
+    def shift(self, dir):     # Focused movement; probably not necessary
         key_hold(MISC['shift'])
         key_press(MOVE[dir])
         key.key_release(MISC['shift'])
@@ -89,25 +97,36 @@ class PlayerCharacter(object):
 
     def evade(self):
         h_dists, v_dists = self.radar.obj_dists
-        h_avg = np.average(h_dists)
-        v_avg = np.average(v_dists)
-
         if h_dists.size > 0:
+            h_avg = np.average(h_dists)
+            v_avg = np.average(v_dists)
+
+            # Move in the direction where the bullets are farthest on average.
             if h_avg > 0:
                 self.move_right()
             else:
                 self.move_left()
 
-            if v_avg > 0:
-                self.move_up()
-            else:
-                self.move_down()
-        else:
-            self.move_to(HIT_X, HIT_Y)
+            # if v_avg > 0:
+            #     self.move_up()
+            # else:
+            #     self.move_down()
 
-    def move_to(self, x, y):
-        """Bring character to (x, y)"""
-        pass
+        else:
+            # Move toward center when not dodging things
+            self.move_toward(HIT_X, HIT_Y)
+
+    def move_toward(self, x, y):
+        """Bring character closer to (x, y)"""
+        if self.hit_x < x:
+            self.move_right()
+        elif self.hit_x > x:
+            self.move_left()
+
+        if self.hit_y < y:
+            self.move_down()
+        elif self.hit_y > y:
+            self.move_up()
 
     def start(self):
         self.shoot_constantly = LoopingCall(self.shoot)
@@ -126,7 +145,7 @@ def start_game():
 
 def main():
     start_game()
-    radar = Radar((HIT_X, HIT_Y))
+    radar = Radar((HIT_X, HIT_Y), 20, .03, 90)
     player = PlayerCharacter(radar)
 
     reactor.callWhenRunning(player.start)
