@@ -8,7 +8,7 @@ import os
 import time
 import logging
 
-logging.basicConfig(filename='radar.log',level=logging.DEBUG)
+logging.basicConfig(filename='radar.log', level=logging.DEBUG)
 
 # Coordinates for gameplay area
 GAME_RECT = {'x0': 35, 'y0': 42, 'dx': 384, 'dy': 448}
@@ -46,28 +46,28 @@ class Radar(object):
         self.center_x, self.center_y = (hit_x, hit_y)
 
         self.apothem = apothem    # Distance within which to check for hostiles
-        self.curr_fov = take_screenshot(self.x0, self.y0, self.dx, self.dy)
+        self.curr_screen = take_screenshot(self.x0, self.y0, self.dx, self.dy)
         self.obj_dists = (np.empty(0), np.empty(0))  # distances of objects in fov
         self.blink_time = blink_time           # Pause between screenshots
         self.diff_threhold = diff_threshold    # Diffs above this are dangerous
 
-        # TODO: Call self.scan_fov only when self.curr_fov is updated
+        # TODO: Call self.scan_fov only when self.curr_screen is updated
         self.scanner = LoopingCall(self.scan_fov)
 
     def update_fov(self):
         """Takes a screenshot and makes it the current fov."""
         # TODO: Only need to record the part we actually examine in scan_fov
-        self.curr_fov = take_screenshot(self.x0, self.y0, self.dx, self.dy)
-        # self.curr_fov.show()
+        self.curr_screen = take_screenshot(self.x0, self.y0, self.dx, self.dy)
+        # self.curr_screen.show()
 
     def get_diff(self):
         """Takes a new screenshots and compares it with the current one."""
         # time.sleep(.03) # TODO: Make this non-blocking
-        old_fov = self.curr_fov
-        # old_fov.show()
+        old_screen = self.curr_screen
+        # old_screen.show()
         self.update_fov()
-        # self.curr_fov.show()
-        diff_img = ImageChops.difference(old_fov, self.curr_fov)
+        # self.curr_screen.show()
+        diff_img = ImageChops.difference(old_screen, self.curr_screen)
         # diff_img.show()
         return ImageOps.grayscale(diff_img)
 
@@ -79,35 +79,41 @@ class Radar(object):
         diff_ar = np.array(self.get_diff())
 
         # Get the slice of the array representing the fov
-        # NumPy indexing: array[rows, cols]
-        # x = self.center_x
-        # y = self.center_y
+        # NumPy indexing: array[row, col]
+        row = self.center_y
+        col = self.center_x
 
         # Look at front, left, and right of hitbox
-        # Note: fov_ar is a view of diff_ar that gets its own set of indices starting at 0,0
-        fov_ar = diff_ar[self.center_x-self.apothem:self.center_x+self.apothem,
-                         self.center_y-self.apothem:self.center_y]
-
-        # TODO: Give this a better name, since it's not the vertical center of the array
-        fov_center = (fov_ar[:,0].size-1, fov_ar[0,:].size/2)
+            # Note: fov_ar is a view of diff_ar that gets its own set of indices starting at 0,0
+        fov_ar = diff_ar[row - self.apothem:row,
+                         col - self.apothem:col + self.apothem]
         # Zero out low diff values.
         fov_ar[fov_ar < self.diff_threhold] = 0
         # Get the indices of non-zero values.
-        obj_locs = np.transpose(np.nonzero(fov_ar))
-        # logging.debug(fov_ar)
+        # obj_locs = np.transpose(np.nonzero(fov_ar))
+        obj_locs = np.nonzero(fov_ar)
         # logging.debug(obj_locs)
 
+        # Get hitbox wrt current fov (rather than entire gameplay area)
+        hitbox_row = fov_ar[:,0].size-1
+        hitbox_col = fov_ar[0,:].size/2
+        hitbox = (hitbox_row, hitbox_col)
+
         # Update self.obj_dists with distances of currently visible objects
-        if obj_locs.size > 0:
-            self.obj_dists = self.get_distance(obj_locs, fov_center)
+        if obj_locs:
+            self.obj_dists = self.get_distance(obj_locs, hitbox)
         else:
             self.obj_dists = (np.empty(0), np.empty(0))
 
     def get_distance(self, locs, reference):
         """Get average horizontal and vertical distances of objects in fov as a pair
         of NumPy arrays."""
-        h_dists = (locs[:, 0] - reference[0])
-        v_dists = (locs[:, 1] - reference[1])
+        h_dists = (locs[1] - reference[1])   # dist in cols
+        v_dists = (locs[0] - reference[0])   # dist in rows
+        if v_dists.size > 0:
+            logging.debug(reference)
+            logging.debug(np.average(v_dists))
+        # logging.debug(np.average(v_dists))
         return (h_dists, v_dists)
 
     def start(self):
@@ -115,7 +121,7 @@ class Radar(object):
         self.scanner.start(self.blink_time, False)
 
 def main():
-    radar = Radar((192 + GAME_RECT['x0'], 385 + GAME_RECT['y0']))
+    radar = Radar((192 + GAME_RECT['x0'], 385 + GAME_RECT['y0']), 10, .03, 90)
     reactor.callWhenRunning(radar.start)
     reactor.run()
 

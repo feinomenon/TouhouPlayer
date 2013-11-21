@@ -9,7 +9,7 @@ import os
 import time
 import logging
 
-logging.basicConfig(filename='thplayer.log',level=logging.DEBUG)
+logging.basicConfig(filename='thplayer.log', level=logging.DEBUG)
 
 MOVE = {'left': 0x25,   # 2 pixels each movement
         'up': 0x26,
@@ -22,6 +22,7 @@ MISC = {'shift': 0x10,  # focus
 ATK = {'z': 0x5A,      # shoot
        'x': 0x58}      # bomb
 
+# Coordinates of center of hitbox
 HIT_X = 192 + GAME_RECT['x0']
 HIT_Y = 385 + GAME_RECT['y0']
 
@@ -49,40 +50,39 @@ class PlayerCharacter(object):
         self.height = 82    # slight overestimation
         self.radar = radar
         self.bounds = GAME_RECT
-        # TODO: Need some way of knowing that we've hit a wall
         # TODO: Need some way of knowing that we've lost a life.
 
     def move_left(self):
-        if self.hit_x > self.bounds['x0'] + self.radar.apothem + 1:
+        if self.hit_x > self.bounds['x0'] + self.radar.apothem:
             key_press(MOVE['left'])
             self.hit_x -= 4
             self.radar.center_x -= 4
         else:
-            logging.debug("Too far left!")
+            logging.warning("Too far left!")
 
     def move_right(self):
-        if self.hit_x < self.bounds['dx'] - self.radar.apothem - 1:
+        if self.hit_x < self.bounds['dx'] - self.radar.apothem:
             key_press(MOVE['right'])
             self.hit_x += 4
             self.radar.center_x += 4
         else:
-            logging.debug("Too far right!")
+            logging.warning("Too far right!")
 
     def move_up(self):
-        if self.hit_y > self.bounds['y0'] + self.radar.apothem + 1:
+        if self.hit_y > self.bounds['y0'] + self.radar.apothem:
             key_press(MOVE['up'])
-            self.hit_y -= 8
-            self.radar.center_y -= 8
+            self.hit_y -= 4
+            self.radar.center_y -= 4
         else:
-            logging.debug("Too far up!")
+            logging.warning("Too far up!")
 
     def move_down(self):
-        if self.hit_y < self.bounds['dy'] - self.radar.apothem - 1:
+        if self.hit_y < self.bounds['dy']:   # - self.radar.apothem:
             key_press(MOVE['down'])
-            self.hit_y += 8
-            self.radar.center_x += 8
+            self.hit_y += 4
+            self.radar.center_x += 4
         else:
-            logging.debug("Too far down!")
+            logging.warning("Too far down!")
 
     def shift(self, dir):     # Focused movement; probably not necessary
         key_hold(MISC['shift'])
@@ -102,19 +102,16 @@ class PlayerCharacter(object):
             v_avg = np.average(v_dists)
 
             # Move in the direction where the bullets are farthest on average.
+            # if v_avg < 15:
+            #     self.move_down()
             if h_avg > 0:
                 self.move_right()
-            else:
+            elif h_avg < 0:
                 self.move_left()
 
-            # if v_avg > 0:
-            #     self.move_up()
-            # else:
-            #     self.move_down()
-
-        else:
-            # Move toward center when not dodging things
-            self.move_toward(HIT_X, HIT_Y)
+        # else:
+        #     # Move toward center when not dodging things
+        #     self.move_toward(HIT_X, HIT_Y)
 
     def move_toward(self, x, y):
         """Bring character closer to (x, y)"""
@@ -129,12 +126,12 @@ class PlayerCharacter(object):
             self.move_up()
 
     def start(self):
-        self.shoot_constantly = LoopingCall(self.shoot)
-        self.bomb_occasionally = LoopingCall(self.bomb)
+        # self.shoot_constantly = LoopingCall(self.shoot)
+        # self.bomb_occasionally = LoopingCall(self.bomb)
         self.evader = LoopingCall(self.evade)
 
-        self.shoot_constantly.start(0)
-        self.evader.start(.03)
+        # self.shoot_constantly.start(0)
+        self.evader.start(.3)
         # self.bomb_occasionally.start(10, False)
 
 def start_game():
@@ -142,11 +139,20 @@ def start_game():
     for i in range(5):
         key_press(0x5A)
         time.sleep(1.5)
+    time.sleep(3)
+
+def movetest(player):
+    for i in range(3):
+        player.radar.update_fov()
+        player.move_up()
+        player.move_up()
+        time.sleep(1)
 
 def main():
     start_game()
-    radar = Radar((HIT_X, HIT_Y), 20, .03, 90)
+    radar = Radar((HIT_X, HIT_Y), 50, .03, 90)
     player = PlayerCharacter(radar)
+    # movetest(player)
 
     reactor.callWhenRunning(player.start)
     reactor.callWhenRunning(radar.start)
