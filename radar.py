@@ -47,7 +47,7 @@ class Radar(object):
 
         self.apothem = apothem    # Distance within which to check for hostiles
         self.curr_screen = take_screenshot(self.x0, self.y0, self.dx, self.dy)
-        self.obj_dists = (np.empty(0), np.empty(0))  # distances of objects in fov
+        self.obj_dists = (np.inf, np.inf, np.inf)  # dists of objects in fov
         self.blink_time = blink_time           # Pause between screenshots
         self.diff_threhold = diff_threshold    # Diffs above this are dangerous
 
@@ -101,20 +101,51 @@ class Radar(object):
 
         # Update self.obj_dists with distances of currently visible objects
         if obj_locs:
-            self.obj_dists = self.get_distance(obj_locs, hitbox)
+            self.obj_dists = self.get_distances(obj_locs, hitbox)
         else:
             self.obj_dists = (np.empty(0), np.empty(0))
 
-    def get_distance(self, locs, reference):
-        """Get average horizontal and vertical distances of objects in fov as a pair
-        of NumPy arrays."""
-        h_dists = (locs[1] - reference[1])   # dist in cols
+    def get_distances(self, locs, reference):
+        """Get weights (distances) left, right, and top of the reference."""
         v_dists = (locs[0] - reference[0])   # dist in rows
+        h_dists = (locs[1] - reference[1])   # dist in cols
+
+        left_weight = self.avg_left_dists(h_dists, reference)
+        right_weight = self.avg_right_dists(h_dists, reference)
+        up_weight = self.avg_up_dists(v_dists, reference)
+
+        return (left_weight, right_weight, up_weight)
+
+    def avg_left_dists(h_dists, h_dists, reference):
+        """Given an array of horizontal distances of projectiles, find the
+        average horizontal distance of projectiles left of the reference.
+        """
+        weight = np.inf
+        if h_dists.size > 0:
+            left_dists = h_dists.copy()
+            # Set distances right of the reference to 0, then find average.
+            left_dists[left_dists > 0] = 0
+            weight = np.abs(np.average(left_dists))
+
+        return weight
+
+    def avg_right_dists(self, h_dists, reference):
+        weight = np.inf
+        if h_dists.size > 0:
+            right_dists = h_dists.copy()
+            right_dists[right_dists < 0] = 0
+            weight = np.abs(np.average(right_dists))
+
+        return weight
+
+    def avg_up_dists(self, v_dists, reference):
+        weight = np.inf
         if v_dists.size > 0:
-            logging.debug(reference)
-            logging.debug(np.average(v_dists))
-        # logging.debug(np.average(v_dists))
-        return (h_dists, v_dists)
+            up_dists = v_dists.copy()
+            up_dists[up_dists > 0] = 0
+            weight = np.abs(np.average(up_dists))
+
+        return weight
 
     def start(self):
         self.curr_img = self.update_fov()
