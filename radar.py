@@ -79,12 +79,10 @@ class Radar(object):
         diff_ar = np.array(self.get_diff())
 
         # Get the slice of the array representing the fov
-        # NumPy indexing: array[row, col]
-        row = self.center_y
-        col = self.center_x
-
         # Look at front, left, and right of hitbox
-            # Note: fov_ar is a view of diff_ar that gets its own set of indices starting at 0,0
+        # NumPy indexing: array[row, col]
+        row = self.center_y - self.y0
+        col = self.center_x - self.x0
         fov_ar = diff_ar[row - self.apothem:row,
                          col - self.apothem:col + self.apothem]
         # Zero out low diff values.
@@ -95,15 +93,16 @@ class Radar(object):
         # logging.debug(obj_locs)
 
         # Get hitbox wrt current fov (rather than entire gameplay area)
-        hitbox_row = fov_ar[:,0].size-1
-        hitbox_col = fov_ar[0,:].size/2
+        hitbox_row = fov_ar[:,0].size - 1
+        hitbox_col = fov_ar[0,:].size / 2
         hitbox = (hitbox_row, hitbox_col)
 
         # Update self.obj_dists with distances of currently visible objects
         if obj_locs:
             self.obj_dists = self.get_distances(obj_locs, hitbox)
         else:
-            self.obj_dists = (np.empty(0), np.empty(0))
+            self.obj_dists = (np.inf, np.inf, np.inf)
+        logging.debug(self.obj_dists)
 
     def get_distances(self, locs, reference):
         """Get weights (distances) left, right, and top of the reference."""
@@ -116,7 +115,7 @@ class Radar(object):
 
         return (left_weight, right_weight, up_weight)
 
-    def avg_left_dists(h_dists, h_dists, reference):
+    def avg_left_dists(self, h_dists, reference):
         """Given an array of horizontal distances of projectiles, find the
         average horizontal distance of projectiles left of the reference.
         """
@@ -125,7 +124,9 @@ class Radar(object):
             left_dists = h_dists.copy()
             # Set distances right of the reference to 0, then find average.
             left_dists[left_dists > 0] = 0
-            weight = np.abs(np.average(left_dists))
+            avg = np.abs(np.average(left_dists))
+            if avg > 0:
+                weight = avg
 
         return weight
 
@@ -134,7 +135,9 @@ class Radar(object):
         if h_dists.size > 0:
             right_dists = h_dists.copy()
             right_dists[right_dists < 0] = 0
-            weight = np.abs(np.average(right_dists))
+            avg = np.abs(np.average(right_dists))
+            if avg > 0:
+                weight = avg
 
         return weight
 

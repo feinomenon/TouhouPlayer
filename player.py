@@ -96,22 +96,19 @@ class PlayerCharacter(object):
         key_press(ATK['x'])
 
     def evade(self):
-        h_dists, v_dists = self.radar.obj_dists
-        if h_dists.size > 0:
-            h_avg = np.average(h_dists)
-            v_avg = np.average(v_dists)
+        left_weight, right_weight, up_weight = self.radar.obj_dists
+        # Move in the direction where the bullets are farthest on average.
+        if up_weight < 15:
+            self.move_down()
 
-            # Move in the direction where the bullets are farthest on average.
-            # if v_avg < 15:
-            #     self.move_down()
-            if h_avg > 0:
-                self.move_right()
-            elif h_avg < 0:
-                self.move_left()
+        if right_weight > left_weight:
+            self.move_right()
+        elif left_weight > right_weight:
+            self.move_left()
 
-        # else:
-        #     # Move toward center when not dodging things
-        #     self.move_toward(HIT_X, HIT_Y)
+        else:
+            # Move toward center when not dodging things
+            self.move_toward(HIT_X, HIT_Y)
 
     def move_toward(self, x, y):
         """Bring character closer to (x, y)"""
@@ -131,7 +128,7 @@ class PlayerCharacter(object):
         self.evader = LoopingCall(self.evade)
 
         # self.shoot_constantly.start(0)
-        self.evader.start(.3)
+        self.evader.start(.031)
         # self.bomb_occasionally.start(10, False)
 
 def start_game():
@@ -150,7 +147,7 @@ def movetest(player):
 
 def main():
     start_game()
-    radar = Radar((HIT_X, HIT_Y), 50, .03, 90)
+    radar = Radar((HIT_X, HIT_Y), 50, .03, 80)
     player = PlayerCharacter(radar)
     # movetest(player)
 
