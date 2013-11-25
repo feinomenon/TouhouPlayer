@@ -26,14 +26,14 @@ def take_screenshot(x0, y0, dx, dy):
     dataBitMap = win32ui.CreateBitmap()     # PyHandle object
     dataBitMap.CreateCompatibleBitmap(dcObj, dx, dy)
     cDC.SelectObject(dataBitMap)
-    cDC.BitBlt((0,0),(dx, dy) , dcObj, (x0, y0), win32con.SRCCOPY)
+    cDC.BitBlt((0,0), (dx, dy), dcObj, (x0, y0), win32con.SRCCOPY)
     image = dataBitMap.GetBitmapBits(1)
 
     dcObj.DeleteDC()
     cDC.DeleteDC()
     win32gui.ReleaseDC(hwnd, wDC)
 
-    return Image.frombuffer("RGBA", (384, 448), image, "raw", "RGBA", 0, 1)
+    return Image.frombuffer("RGBA", (dx, dy), image, "raw", "RGBA", 0, 1)
 
 class Radar(object):
     def __init__(self, (hit_x, hit_y), apothem, blink_time, diff_threshold):
@@ -54,19 +54,18 @@ class Radar(object):
         # TODO: Call self.scan_fov only when self.curr_screen is updated
         self.scanner = LoopingCall(self.scan_fov)
 
+        self.fov_img = None     # Debug
+
     def update_fov(self):
         """Takes a screenshot and makes it the current fov."""
         # TODO: Only need to record the part we actually examine in scan_fov
         self.curr_screen = take_screenshot(self.x0, self.y0, self.dx, self.dy)
-        # self.curr_screen.show()
 
     def get_diff(self):
         """Takes a new screenshots and compares it with the current one."""
         # time.sleep(.03) # TODO: Make this non-blocking
         old_screen = self.curr_screen
-        # old_screen.show()
         self.update_fov()
-        # self.curr_screen.show()
         diff_img = ImageChops.difference(old_screen, self.curr_screen)
         # diff_img.show()
         return ImageOps.grayscale(diff_img)
@@ -80,17 +79,16 @@ class Radar(object):
 
         # Get the slice of the array representing the fov
         # Look at front, left, and right of hitbox
-        # NumPy indexing: array[row, col]
         row = self.center_y - self.y0
         col = self.center_x - self.x0
-        fov_ar = diff_ar[row - self.apothem:row,
-                         col - self.apothem:col + self.apothem]
+        fov_ar = diff_ar[row - self.apothem*1.5:row + 50,
+                         col - self.apothem*.75:col + self.apothem*.75]
+        self.fov_img = Image.fromarray(fov_ar)  # Debug
+
         # Zero out low diff values.
         fov_ar[fov_ar < self.diff_threhold] = 0
         # Get the indices of non-zero values.
-        # obj_locs = np.transpose(np.nonzero(fov_ar))
         obj_locs = np.nonzero(fov_ar)
-        # logging.debug(obj_locs)
 
         # Get hitbox wrt current fov (rather than entire gameplay area)
         hitbox_row = fov_ar[:,0].size - 1
@@ -102,7 +100,6 @@ class Radar(object):
             self.obj_dists = self.get_distances(obj_locs, hitbox)
         else:
             self.obj_dists = (np.inf, np.inf, np.inf)
-        logging.debug(self.obj_dists)
 
     def get_distances(self, locs, reference):
         """Get weights (distances) left, right, and top of the reference."""
@@ -164,6 +161,7 @@ def main():
     # arr = radar.scan_fov()
     # # print(arr)
     # print(time.time() - start)
+    # 0.007
 
 if __name__ == '__main__':
     main()

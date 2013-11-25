@@ -29,8 +29,6 @@ HIT_Y = 385 + GAME_RECT['y0']
 def key_press(key):
     # TODO: Check with actual position of sprite
     win32api.keybd_event(key, 0, 0, 0)
-    # reactor.callLater(.02, win32api.keybd_event,key, 0,
-    #                   win32con.KEYEVENTF_KEYUP, 0)
     time.sleep(.02)
     win32api.keybd_event(key, 0, win32con.KEYEVENTF_KEYUP, 0)
 
@@ -46,8 +44,8 @@ class PlayerCharacter(object):
         self.hit_x = hit_x
         self.hit_y = hit_y
         self.radius = radius
-        self.width = 62
-        self.height = 82    # slight overestimation
+        self.width = 25
+        self.height = 45
         self.radar = radar
         self.bounds = GAME_RECT
         # TODO: Need some way of knowing that we've lost a life.
@@ -94,41 +92,46 @@ class PlayerCharacter(object):
 
     def bomb(self):
         key_press(ATK['x'])
+        self.move_toward(HIT_X, HIT_Y)
 
     def evade(self):
-        left_weight, right_weight, up_weight = self.radar.obj_dists
+        l_weight, r_weight, u_weight = self.radar.obj_dists
+        # if len(filter(lambda x: x > 60, (l_weight, r_weight, u_weight))) == 3:
+        #     # Move toward center when not dodging things
+        #     self.move_toward(HIT_X, HIT_Y)
+        #     # a = 1
+        # else:
+
         # Move in the direction where the bullets are farthest on average.
-        if up_weight < 15:
+        if u_weight < 35:
             self.move_down()
-
-        if right_weight > left_weight:
+        elif r_weight - l_weight > 1:
             self.move_right()
-        elif left_weight > right_weight:
+            # self.radar.fov_img.show()
+        elif l_weight > r_weight > 1:
             self.move_left()
-
-        else:
-            # Move toward center when not dodging things
-            self.move_toward(HIT_X, HIT_Y)
+            # self.radar.fov_img.show()
+        elif self.hit_y > HIT_Y:
+            self.move_up()
 
     def move_toward(self, x, y):
-        """Bring character closer to (x, y)"""
-        if self.hit_x < x:
+        """Bring character one step closer to (x, y)"""
+        if self.hit_y > y:
+            self.move_up()
+        elif self.hit_y < y:
+            self.move_down()
+        elif self.hit_x < x:
             self.move_right()
         elif self.hit_x > x:
             self.move_left()
 
-        if self.hit_y < y:
-            self.move_down()
-        elif self.hit_y > y:
-            self.move_up()
-
     def start(self):
-        # self.shoot_constantly = LoopingCall(self.shoot)
-        # self.bomb_occasionally = LoopingCall(self.bomb)
+        self.shoot_constantly = LoopingCall(self.shoot)
+        self.bomb_occasionally = LoopingCall(self.bomb)
         self.evader = LoopingCall(self.evade)
 
-        # self.shoot_constantly.start(0)
-        self.evader.start(.031)
+        self.shoot_constantly.start(0)
+        self.evader.start(.03)
         # self.bomb_occasionally.start(10, False)
 
 def start_game():
@@ -136,7 +139,7 @@ def start_game():
     for i in range(5):
         key_press(0x5A)
         time.sleep(1.5)
-    time.sleep(3)
+    time.sleep(2)
 
 def movetest(player):
     for i in range(3):
@@ -147,7 +150,7 @@ def movetest(player):
 
 def main():
     start_game()
-    radar = Radar((HIT_X, HIT_Y), 50, .03, 80)
+    radar = Radar((HIT_X, HIT_Y), 150, .02, 110)
     player = PlayerCharacter(radar)
     # movetest(player)
 
